@@ -4,15 +4,25 @@ import { DropZone } from './components/DropZone';
 import { FileList } from './components/FileList';
 import { PropertyDetailsForm } from './components/PropertyDetailsForm';
 import { ProcessingScreen } from './components/ProcessingScreen';
+import { AnalysisResults } from './components/AnalysisResults';
 import {
   UploadedFile,
   MAX_FILES,
   validateFile,
 } from './types/upload';
 import { PropertyFormData } from './types/property';
-import { ProcessedDocument } from './services/api';
+import {
+  ProcessedDocument,
+  DocumentAnalysisResponse,
+  analyzeDocuments,
+} from './services/api';
 
-type AppStep = 'upload' | 'details' | 'processing';
+type AppStep =
+  | 'upload'
+  | 'details'
+  | 'processing'
+  | 'analysis'
+  | 'results';
 
 function App() {
   const [currentStep, setCurrentStep] = useState<AppStep>('upload');
@@ -22,6 +32,9 @@ function App() {
     null
   );
   const [allDocuments, setAllDocuments] = useState<ProcessedDocument[]>([]);
+  const [analysisResults, setAnalysisResults] =
+    useState<DocumentAnalysisResponse | null>(null);
+  const [analysisError, setAnalysisError] = useState<string>('');
 
   const handleFilesSelected = (files: File[]) => {
     setGlobalError('');
@@ -78,15 +91,94 @@ function App() {
       size: f.size,
     }));
 
-    setAllDocuments([...uploadedDocs, retrievedDocument]);
-
-    console.log('Processing complete:', {
-      propertyData,
-      documents: [...uploadedDocs, retrievedDocument],
-    });
-
-    alert('All documents processed successfully! Check console for details.');
+    const allDocs = [...uploadedDocs, retrievedDocument];
+    setAllDocuments(allDocs);
+    setCurrentStep('analysis');
+    startAnalysis(allDocs, propertyData!);
   };
+
+  const startAnalysis = async (
+    documents: ProcessedDocument[],
+    property: PropertyFormData
+  ) => {
+    try {
+      setAnalysisError('');
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Supabase configuration missing');
+      }
+
+      const analysisRequest = {
+        documents: documents.map((doc) => ({
+          name: doc.name,
+          base64: 'mock_base64_data',
+          size: doc.size,
+        })),
+        property_data: property,
+      };
+
+      const results = await analyzeDocuments(
+        analysisRequest,
+        supabaseUrl,
+        supabaseKey
+      );
+
+      setAnalysisResults(results);
+      setCurrentStep('results');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Analysis failed';
+      setAnalysisError(message);
+      setCurrentStep('results');
+    }
+  };
+
+  if (currentStep === 'results') {
+    if (analysisError) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
+            <h2 className="text-2xl font-bold text-red-700 mb-2">
+              Analysis Failed
+            </h2>
+            <p className="text-gray-600 mb-6">{analysisError}</p>
+            <button
+              onClick={() => setCurrentStep('upload')}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+            >
+              Start Over
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (analysisResults) {
+      return <AnalysisResults results={analysisResults} />;
+    }
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Analyzing documents...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentStep === 'analysis') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Analyzing documents with AI...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (currentStep === 'processing') {
     return (

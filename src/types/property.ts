@@ -14,6 +14,29 @@ export interface PropertyFormErrors {
   subdivision?: string;
 }
 
+export type AnalysisVerdict = 'APPROVED' | 'CONDITIONALLY_APPROVED' | 'REJECTED';
+
+export type FindingCategory = 'Mandatory' | 'Optional';
+
+export type FindingSeverity = 'High' | 'Medium' | 'Low';
+
+export interface AnalysisFinding {
+  id: string;
+  category: FindingCategory;
+  severity: FindingSeverity;
+  title: string;
+  description: string;
+  affected_documents: string[];
+}
+
+export interface AnalysisResult {
+  verdict: AnalysisVerdict;
+  confidence_score: number;
+  findings: AnalysisFinding[];
+  total_documents_analyzed: number;
+  summary: string;
+}
+
 export interface SROData {
   [district: string]: string[];
 }

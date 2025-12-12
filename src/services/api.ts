@@ -12,6 +12,38 @@ export interface ApiResponse {
   error?: string;
 }
 
+export interface DocumentAnalysisRequest {
+  documents: Array<{
+    name: string;
+    base64: string;
+    size: number;
+  }>;
+  property_data: {
+    district: string;
+    sro_name: string;
+    village: string;
+    survey_number: string;
+    subdivision: string;
+  };
+}
+
+export interface AnalysisFinding {
+  id: string;
+  category: 'Mandatory' | 'Optional';
+  severity: 'High' | 'Medium' | 'Low';
+  title: string;
+  description: string;
+  affected_documents: string[];
+}
+
+export interface DocumentAnalysisResponse {
+  verdict: 'APPROVED' | 'CONDITIONALLY_APPROVED' | 'REJECTED';
+  confidence_score: number;
+  findings: AnalysisFinding[];
+  total_documents_analyzed: number;
+  summary: string;
+}
+
 const delay = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -75,4 +107,30 @@ export const simulateApiTimeout = (
       reject(new Error('Request aborted'));
     });
   });
+};
+
+export const analyzeDocuments = async (
+  request: DocumentAnalysisRequest,
+  supabaseUrl: string,
+  supabaseKey: string
+): Promise<DocumentAnalysisResponse> => {
+  const apiUrl = `${supabaseUrl}/functions/v1/analyze-documents`;
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      errorData.error || `API error: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return await response.json();
 };
