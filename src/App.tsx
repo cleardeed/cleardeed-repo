@@ -3,19 +3,25 @@ import { ArrowRight, CheckCircle } from 'lucide-react';
 import { DropZone } from './components/DropZone';
 import { FileList } from './components/FileList';
 import { PropertyDetailsForm } from './components/PropertyDetailsForm';
+import { ProcessingScreen } from './components/ProcessingScreen';
 import {
   UploadedFile,
   MAX_FILES,
   validateFile,
 } from './types/upload';
 import { PropertyFormData } from './types/property';
+import { ProcessedDocument } from './services/api';
 
-type AppStep = 'upload' | 'details';
+type AppStep = 'upload' | 'details' | 'processing';
 
 function App() {
   const [currentStep, setCurrentStep] = useState<AppStep>('upload');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [globalError, setGlobalError] = useState<string>('');
+  const [propertyData, setPropertyData] = useState<PropertyFormData | null>(
+    null
+  );
+  const [allDocuments, setAllDocuments] = useState<ProcessedDocument[]>([]);
 
   const handleFilesSelected = (files: File[]) => {
     setGlobalError('');
@@ -52,11 +58,8 @@ function App() {
   const canProceed = validFiles.length > 0;
 
   const handlePropertySubmit = (data: PropertyFormData) => {
-    console.log('Property details submitted:', {
-      files: uploadedFiles.filter((f) => !f.error).map((f) => f.name),
-      propertyData: data,
-    });
-    alert('Property details submitted successfully! Check console for details.');
+    setPropertyData(data);
+    setCurrentStep('processing');
   };
 
   const handleBackToUpload = () => {
@@ -66,6 +69,30 @@ function App() {
   const handleProceedToDetails = () => {
     setCurrentStep('details');
   };
+
+  const handleProcessingComplete = (retrievedDocument: ProcessedDocument) => {
+    const uploadedDocs: ProcessedDocument[] = validFiles.map((f) => ({
+      id: f.id,
+      name: f.name,
+      source: 'uploaded' as const,
+      size: f.size,
+    }));
+
+    setAllDocuments([...uploadedDocs, retrievedDocument]);
+
+    console.log('Processing complete:', {
+      propertyData,
+      documents: [...uploadedDocs, retrievedDocument],
+    });
+
+    alert('All documents processed successfully! Check console for details.');
+  };
+
+  if (currentStep === 'processing') {
+    return (
+      <ProcessingScreen onComplete={handleProcessingComplete} />
+    );
+  }
 
   if (currentStep === 'details') {
     return (
