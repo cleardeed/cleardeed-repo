@@ -136,6 +136,16 @@ function App() {
     }
   };
 
+  const handleStartNewAnalysis = () => {
+    setCurrentStep('upload');
+    setUploadedFiles([]);
+    setPropertyData(null);
+    setAllDocuments([]);
+    setAnalysisResults(null);
+    setAnalysisError('');
+    setGlobalError('');
+  };
+
   if (currentStep === 'results') {
     if (analysisError) {
       return (
@@ -146,7 +156,7 @@ function App() {
             </h2>
             <p className="text-gray-600 mb-6">{analysisError}</p>
             <button
-              onClick={() => setCurrentStep('upload')}
+              onClick={handleStartNewAnalysis}
               className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
             >
               Start Over
@@ -157,7 +167,12 @@ function App() {
     }
 
     if (analysisResults) {
-      return <AnalysisResults results={analysisResults} />;
+      return (
+        <AnalysisResults
+          results={analysisResults}
+          onStartNew={handleStartNewAnalysis}
+        />
+      );
     }
 
     return (
