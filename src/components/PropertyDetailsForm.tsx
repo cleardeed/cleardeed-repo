@@ -11,19 +11,23 @@ import {
 interface PropertyDetailsFormProps {
   onBack: () => void;
   onSubmit: (data: PropertyFormData) => void;
+  initialData?: PropertyFormData;
 }
 
 export const PropertyDetailsForm = ({
   onBack,
   onSubmit,
+  initialData,
 }: PropertyDetailsFormProps) => {
-  const [formData, setFormData] = useState<PropertyFormData>({
-    district: '',
-    sro_name: '',
-    village: '',
-    survey_number: '',
-    subdivision: '',
-  });
+  const [formData, setFormData] = useState<PropertyFormData>(
+    initialData || {
+      district: '',
+      sro_name: '',
+      village: '',
+      survey_number: '',
+      subdivision: '',
+    }
+  );
 
   const [errors, setErrors] = useState<PropertyFormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});

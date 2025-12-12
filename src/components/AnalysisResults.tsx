@@ -10,10 +10,14 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { DocumentAnalysisResponse, AnalysisFinding } from '../services/api';
+import { PropertyFormData } from '../types/property';
+import { generatePDFReport } from '../services/pdfExport';
 import { useState } from 'react';
 
 interface AnalysisResultsProps {
   results: DocumentAnalysisResponse;
+  propertyData?: PropertyFormData;
+  documentNames?: string[];
   onDownload?: () => void;
   onStartNew?: () => void;
 }
@@ -55,11 +59,33 @@ const sortFindingsBySeverity = (findings: AnalysisFinding[]): AnalysisFinding[] 
 
 export const AnalysisResults = ({
   results,
+  propertyData,
+  documentNames,
   onDownload,
   onStartNew,
 }: AnalysisResultsProps) => {
   const [expandedFindings, setExpandedFindings] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<FindingTab>('mandatory');
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handlePDFExport = async () => {
+    try {
+      setIsExporting(true);
+      if (!propertyData || !documentNames) {
+        throw new Error('Missing property data or document names');
+      }
+      await generatePDFReport({
+        propertyData,
+        analysisResults: results,
+        documentNames,
+      });
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const config = verdictConfig[results.verdict];
   const VerdictIcon = config.icon;
@@ -284,15 +310,23 @@ export const AnalysisResults = ({
         )}
 
         <div className="flex flex-col sm:flex-row gap-4 print:hidden">
-          {onDownload && (
-            <button
-              onClick={onDownload}
-              className="flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all shadow-md hover:shadow-lg"
-            >
-              <Download className="w-5 h-5" />
-              Export Report
-            </button>
-          )}
+          <button
+            onClick={handlePDFExport}
+            disabled={isExporting}
+            className="flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold transition-all shadow-md hover:shadow-lg disabled:cursor-not-allowed"
+          >
+            {isExporting ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5" />
+                Export Report
+              </>
+            )}
+          </button>
 
           {onStartNew && (
             <button
