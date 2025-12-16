@@ -57,7 +57,7 @@ export const DropZone = ({ onFilesSelected, disabled }: DropZoneProps) => {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={`
-        relative border-2 border-dashed rounded-lg p-12 text-center cursor-pointer
+        relative border-2 border-dashed rounded-lg p-4 text-center cursor-pointer
         transition-all duration-200 ease-in-out
         ${
           isDragging
@@ -78,23 +78,19 @@ export const DropZone = ({ onFilesSelected, disabled }: DropZoneProps) => {
         className="hidden"
       />
 
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-2">
         {isDragging ? (
-          <FileText className="w-16 h-16 text-blue-500 animate-pulse" />
+          <FileText className="w-10 h-10 text-blue-500 animate-pulse" />
         ) : (
-          <Upload className="w-16 h-16 text-gray-400" />
+          <Upload className="w-10 h-10 text-gray-400" />
         )}
 
         <div>
-          <p className="text-lg font-semibold text-gray-700 mb-2">
-            {isDragging ? 'Drop files here' : 'Drag and drop PDF files here'}
+          <p className="text-sm font-semibold text-gray-700 mb-1">
+            {isDragging ? 'Drop files here' : 'Drop PDF files or click to browse'}
           </p>
-          <p className="text-sm text-gray-500 mb-4">
-            or click to browse your files
-          </p>
-          <div className="flex flex-col gap-1 text-xs text-gray-400">
-            <span>Maximum 10 files</span>
-            <span>PDF only, up to 10MB per file</span>
+          <div className="flex flex-col gap-0.5 text-xs text-gray-400">
+            <span>Max 10 files • PDF only • Up to 10MB each</span>
           </div>
         </div>
       </div>

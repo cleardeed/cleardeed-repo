@@ -1,0 +1,13 @@
+{
+  "name": "cleardeed-helper-server",
+  "version": "1.0.0",
+  "description": "Helper server for file system operations and selenium script execution",
+  "main": "helper-server.js",
+  "scripts": {
+    "start": "node helper-server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}

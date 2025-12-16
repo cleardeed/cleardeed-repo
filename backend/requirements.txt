@@ -1,0 +1,66 @@
+# FastAPI Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Pydantic for data validation
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# PDF Processing
+PyMuPDF==1.23.8  # fitz - Fast PDF text extraction
+pdfplumber==0.10.3  # Alternative PDF processor
+pypdf==3.17.4  # PDF manipulation
+
+# OCR for scanned PDFs
+pytesseract==0.3.10
+Pillow==10.2.0
+
+# Language Detection
+langdetect==1.0.9
+langid==1.1.6
+fasttext==0.9.2  # Optional: For better language detection
+
+# Indic Language Processing (for Tamil)
+indic-nlp-library==0.92
+
+# Embeddings
+sentence-transformers==2.3.1
+torch==2.2.0
+transformers==4.37.0
+numpy==1.24.3
+faiss-cpu==1.7.4  # Use faiss-gpu if CUDA available
+
+# LLM Integration
+httpx==0.26.0  # Async HTTP client for API calls
+ollama==0.1.6  # Ollama Python client (if using Ollama directly)
+
+# File Type Detection
+python-magic==0.4.27
+python-magic-bin==0.4.14  # Windows binary for python-magic
+
+# Environment and Configuration
+python-dotenv==1.0.0
+
+# Logging and Monitoring
+loguru==0.7.2
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-mock==3.12.0
+pytest-cov==4.1.0
+httpx==0.26.0
+
+# Database (Future - if needed)
+# sqlalchemy==2.0.25
+# alembic==1.13.1
+
+# Async Support
+aiofiles==23.2.1
+
+# Security
+passlib[bcrypt]==1.7.4
+
+# CORS
+python-jose[cryptography]==3.3.0

@@ -6,5 +6,23 @@ export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     exclude: ['lucide-react'],
+    esbuildOptions: {
+      loader: {
+        '.js': 'jsx',
+      },
+    },
+  },
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+  },
+  server: {
+    hmr: {
+      overlay: true,
+    },
+    fs: {
+      strict: false,
+    },
   },
 });

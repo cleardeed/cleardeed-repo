@@ -1,17 +1,21 @@
 export interface PropertyFormData {
+  zone: string;
   district: string;
   sro_name: string;
   village: string;
   survey_number: string;
   subdivision: string;
+  email?: string;
 }
 
 export interface PropertyFormErrors {
+  zone?: string;
   district?: string;
   sro_name?: string;
   village?: string;
   survey_number?: string;
   subdivision?: string;
+  email?: string;
 }
 
 export type AnalysisVerdict = 'APPROVED' | 'CONDITIONALLY_APPROVED' | 'REJECTED';

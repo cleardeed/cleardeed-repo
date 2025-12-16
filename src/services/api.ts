@@ -47,32 +47,113 @@ export interface DocumentAnalysisResponse {
 const delay = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-const generateMockPDF = (): ProcessedDocument => ({
-  id: `doc-${Date.now()}`,
-  name: `property-document-${Date.now()}.pdf`,
-  source: 'retrieved',
-  size: Math.floor(Math.random() * 5000000) + 1000000,
-  retrievedAt: new Date().toISOString(),
-});
+// Path where selenium script will download the encumbrance certificate
+const CERTIFICATE_STORAGE_PATH = 'D:\\Sree\\AI Accelerator\\Hackathon\\cleardeed\\downloads';
+
+interface SeleniumScriptParams {
+  zone: string;
+  district: string;
+  sro_name: string;
+  village: string;
+  survey_number: string;
+  subdivision: string;
+}
+
+// Launch the selenium script in the background
+const launchSeleniumScript = async (params: SeleniumScriptParams): Promise<void> => {
+  try {
+    const response = await fetch('http://localhost:3001/execute-script', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ params }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to launch selenium script');
+    }
+  } catch (error) {
+    console.error('Error launching selenium script:', error);
+    throw error;
+  }
+};
+
+// Poll for the downloaded certificate
+const pollForCertificate = async (
+  onStatusChange: (status: string) => void,
+  signal?: AbortSignal,
+  maxAttempts: number = 60, // 60 attempts = 5 minutes with 5s intervals
+  pollInterval: number = 5000 // 5 seconds
+): Promise<ProcessedDocument | null> => {
+  let attempts = 0;
+
+  while (attempts < maxAttempts) {
+    if (signal?.aborted) throw new Error('Operation cancelled');
+
+    try {
+      // Check if file exists in the storage path
+      const response = await fetch('http://localhost:3001/check-certificate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: CERTIFICATE_STORAGE_PATH }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.fileFound) {
+          // File found, create ProcessedDocument
+          return {
+            id: `ec-${Date.now()}`,
+            name: data.fileName,
+            source: 'retrieved',
+            size: data.fileSize,
+            retrievedAt: new Date().toISOString(),
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error polling for certificate:', error);
+    }
+
+    attempts++;
+    const remainingTime = Math.ceil((maxAttempts - attempts) * pollInterval / 1000);
+    onStatusChange(`Waiting for certificate download... (${remainingTime}s remaining)`);
+    
+    await delay(pollInterval);
+  }
+
+  return null; // Timeout
+};
 
 export const callExternalApi = async (
   onStatusChange: (status: string) => void,
+  propertyData: SeleniumScriptParams,
   signal?: AbortSignal
 ): Promise<ApiResponse> => {
   try {
-    onStatusChange('Uploading documents...');
+    onStatusChange('Initiating encumbrance certificate retrieval...');
     if (signal?.aborted) throw new Error('Operation cancelled');
-    await delay(1200);
 
-    onStatusChange('Retrieving additional documents...');
+    // Launch selenium script
+    await launchSeleniumScript(propertyData);
+    onStatusChange('Selenium script started...');
+    await delay(2000);
+
     if (signal?.aborted) throw new Error('Operation cancelled');
-    await delay(1500);
 
-    onStatusChange('Analyzing documents with AI...');
-    if (signal?.aborted) throw new Error('Operation cancelled');
-    await delay(1300);
+    // Start polling for the certificate
+    onStatusChange('Downloading encumbrance certificate...');
+    const retrievedDocument = await pollForCertificate(onStatusChange, signal);
 
-    const retrievedDocument = generateMockPDF();
+    if (!retrievedDocument) {
+      return {
+        success: false,
+        error: 'Timeout: Certificate download took too long. Please try again.',
+      };
+    }
+
+    onStatusChange('Certificate retrieved successfully!');
+    await delay(500);
 
     return {
       success: true,

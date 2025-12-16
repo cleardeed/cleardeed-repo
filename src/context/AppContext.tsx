@@ -3,7 +3,7 @@ import { UploadedFile } from '../types/upload';
 import { PropertyFormData } from '../types/property';
 import { DocumentAnalysisResponse, ProcessedDocument } from '../services/api';
 
-export type AppStep = 'upload' | 'details' | 'processing' | 'results';
+export type AppStep = 'upload' | 'processing' | 'results';
 
 interface AppContextType {
   currentStep: AppStep;

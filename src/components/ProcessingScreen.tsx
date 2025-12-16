@@ -1,14 +1,19 @@
 import { useEffect, useState, useRef } from 'react';
-import { Loader, CheckCircle, AlertCircle, RotateCcw } from 'lucide-react';
+import { Loader, CheckCircle, AlertCircle, RotateCcw, FileText, ArrowRight } from 'lucide-react';
 import { callExternalApi, ProcessedDocument } from '../services/api';
+import { PropertyFormData } from '../types/property';
+import { UploadedFile } from '../types/upload';
+import { cascadingData } from '../utils/dropdownProcessor';
 
 interface ProcessingScreenProps {
   onComplete: (retrievedDocument: ProcessedDocument) => void;
+  propertyData: PropertyFormData | null;
+  uploadedFiles: UploadedFile[];
 }
 
 type ProcessingStatus = 'processing' | 'success' | 'error';
 
-export const ProcessingScreen = ({ onComplete }: ProcessingScreenProps) => {
+export const ProcessingScreen = ({ onComplete, propertyData, uploadedFiles }: ProcessingScreenProps) => {
   const [status, setStatus] = useState<ProcessingStatus>('processing');
   const [currentMessage, setCurrentMessage] = useState('Initializing...');
   const [progress, setProgress] = useState(0);
@@ -18,19 +23,60 @@ export const ProcessingScreen = ({ onComplete }: ProcessingScreenProps) => {
   const abortControllerRef = useRef<AbortController>(new AbortController());
   const progressIntervalRef = useRef<NodeJS.Timeout>();
 
+  // Helper function to get display name from value
+  const getDisplayName = (value: string, type: 'zone' | 'district' | 'sro' | 'village'): string => {
+    if (!value || !propertyData) return value;
+    
+    try {
+      switch (type) {
+        case 'zone':
+          return cascadingData.zones.find(z => z.value === value)?.name || value;
+        case 'district':
+          const districts = cascadingData.districtsByZone.get(propertyData.zone) || [];
+          return districts.find(d => d.value === value)?.name || value;
+        case 'sro':
+          const sros = cascadingData.srosByDistrict.get(propertyData.district) || [];
+          return sros.find(s => s.value === value)?.name || value;
+        case 'village':
+          const villages = cascadingData.villagesBySro.get(propertyData.sro_name) || [];
+          return villages.find(v => v.value === value)?.name || value;
+        default:
+          return value;
+      }
+    } catch (error) {
+      return value;
+    }
+  };
+
   useEffect(() => {
+    let isMounted = true;
+    
     const processDocuments = async () => {
       try {
         let currentProgress = 0;
         progressIntervalRef.current = setInterval(() => {
-          currentProgress = Math.min(currentProgress + Math.random() * 15, 85);
-          setProgress(currentProgress);
+          if (isMounted) {
+            currentProgress = Math.min(currentProgress + Math.random() * 15, 85);
+            setProgress(currentProgress);
+          }
         }, 300);
 
         const result = await callExternalApi(
-          (msg) => setCurrentMessage(msg),
+          (msg) => {
+            if (isMounted) setCurrentMessage(msg);
+          },
+          {
+            zone: propertyData?.zone || '',
+            district: propertyData?.district || '',
+            sro_name: propertyData?.sro_name || '',
+            village: propertyData?.village || '',
+            survey_number: propertyData?.survey_number || '',
+            subdivision: propertyData?.subdivision || '',
+          },
           abortControllerRef.current.signal
         );
+
+        if (!isMounted) return;
 
         clearInterval(progressIntervalRef.current);
         setProgress(100);
@@ -39,10 +85,7 @@ export const ProcessingScreen = ({ onComplete }: ProcessingScreenProps) => {
           setRetrievedDocument(result.retrievedDocument);
           setStatus('success');
           setCurrentMessage('Processing complete!');
-
-          setTimeout(() => {
-            onComplete(result.retrievedDocument!);
-          }, 1500);
+          // Don't auto-navigate, wait for user confirmation
         } else {
           setStatus('error');
           setErrorMessage(
@@ -50,6 +93,8 @@ export const ProcessingScreen = ({ onComplete }: ProcessingScreenProps) => {
           );
         }
       } catch (error) {
+        if (!isMounted) return;
+        
         clearInterval(progressIntervalRef.current);
         setStatus('error');
         setErrorMessage(
@@ -63,8 +108,9 @@ export const ProcessingScreen = ({ onComplete }: ProcessingScreenProps) => {
     processDocuments();
 
     return () => {
+      isMounted = false;
       clearInterval(progressIntervalRef.current);
-      abortControllerRef.current.abort();
+      // Don't abort in cleanup - let the request complete
     };
   }, [onComplete]);
 
@@ -85,6 +131,14 @@ export const ProcessingScreen = ({ onComplete }: ProcessingScreenProps) => {
 
         const result = await callExternalApi(
           (msg) => setCurrentMessage(msg),
+          {
+            zone: propertyData?.zone || '',
+            district: propertyData?.district || '',
+            sro_name: propertyData?.sro_name || '',
+            village: propertyData?.village || '',
+            survey_number: propertyData?.survey_number || '',
+            subdivision: propertyData?.subdivision || '',
+          },
           abortControllerRef.current.signal
         );
 
@@ -120,9 +174,79 @@ export const ProcessingScreen = ({ onComplete }: ProcessingScreenProps) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full">
-        <div className="flex flex-col items-center">
+    <div className="pt-[100px] px-6 pb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
+        {/* Left Pane - Property Summary */}
+        <div className="bg-white rounded-xl shadow-lg p-4 space-y-4">
+          {/* Property Details Section */}
+          <div>
+            <h2 className="text-base font-bold text-gray-800 mb-3 pb-2 border-b border-gray-200">
+              Property Details
+            </h2>
+            {propertyData ? (
+              <div className="space-y-2 text-sm">
+                <div className="flex">
+                  <span className="font-semibold text-gray-600 w-24 flex-shrink-0">Zone:</span>
+                  <span className="text-gray-800">{getDisplayName(propertyData.zone, 'zone') || '-'}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-semibold text-gray-600 w-24 flex-shrink-0">District:</span>
+                  <span className="text-gray-800">{getDisplayName(propertyData.district, 'district') || '-'}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-semibold text-gray-600 w-24 flex-shrink-0">SRO:</span>
+                  <span className="text-gray-800">{getDisplayName(propertyData.sro_name, 'sro') || '-'}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-semibold text-gray-600 w-24 flex-shrink-0">Village:</span>
+                  <span className="text-gray-800">{getDisplayName(propertyData.village, 'village') || '-'}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-semibold text-gray-600 w-24 flex-shrink-0">Survey #:</span>
+                  <span className="text-gray-800">{propertyData.survey_number || '-'}</span>
+                </div>
+                {propertyData.subdivision && (
+                  <div className="flex">
+                    <span className="font-semibold text-gray-600 w-24 flex-shrink-0">Subdivision:</span>
+                    <span className="text-gray-800">{propertyData.subdivision}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No property details available</p>
+            )}
+          </div>
+
+          {/* Uploaded Documents Section */}
+          <div>
+            <h2 className="text-base font-bold text-gray-800 mb-3 pb-2 border-b border-gray-200">
+              Documents ({uploadedFiles.length})
+            </h2>
+            {uploadedFiles.length > 0 ? (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {uploadedFiles.map((file) => (
+                  <div key={file.id} className="flex items-start gap-2 text-sm">
+                    <FileText className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-800 truncate" title={file.name}>
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {(file.size / (1024 * 1024)).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No documents uploaded</p>
+            )}
+          </div>
+        </div>
+
+        {/* Right Pane - Processing Progress */}
+        <div className="bg-white rounded-xl shadow-lg p-8 flex items-center justify-center">
+          <div className="flex flex-col items-center max-w-md w-full">
           {status === 'processing' && (
             <>
               <div className="mb-8">
@@ -154,18 +278,57 @@ export const ProcessingScreen = ({ onComplete }: ProcessingScreenProps) => {
                 </div>
               </div>
 
-              <div className="space-y-2 text-xs text-gray-500 w-full">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                  <span>Uploading documents...</span>
+              <div className="space-y-3 text-sm w-full">
+                <div className="flex items-center gap-3">
+                  {progress < 33 ? (
+                    <Loader className="w-5 h-5 text-blue-500 animate-spin flex-shrink-0" />
+                  ) : (
+                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <p className={`font-medium ${progress < 33 ? 'text-blue-600' : 'text-green-600'}`}>
+                      Fetching Encumbrance Certificate
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Retrieving property records and documents
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                  <span>Retrieving additional documents...</span>
+                
+                <div className="flex items-center gap-3">
+                  {progress < 33 ? (
+                    <div className="w-5 h-5 border-2 border-gray-300 rounded-full flex-shrink-0" />
+                  ) : progress < 66 ? (
+                    <Loader className="w-5 h-5 text-blue-500 animate-spin flex-shrink-0" />
+                  ) : (
+                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <p className={`font-medium ${progress < 33 ? 'text-gray-400' : progress < 66 ? 'text-blue-600' : 'text-green-600'}`}>
+                      Analyzing Documents
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      AI-powered document verification and analysis
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-gray-300 rounded-full" />
-                  <span>Analyzing documents with AI...</span>
+                
+                <div className="flex items-center gap-3">
+                  {progress < 66 ? (
+                    <div className="w-5 h-5 border-2 border-gray-300 rounded-full flex-shrink-0" />
+                  ) : progress < 100 ? (
+                    <Loader className="w-5 h-5 text-blue-500 animate-spin flex-shrink-0" />
+                  ) : (
+                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <p className={`font-medium ${progress < 66 ? 'text-gray-400' : progress < 100 ? 'text-blue-600' : 'text-green-600'}`}>
+                      Preparing Recommendations
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Generating detailed findings and verdict
+                    </p>
+                  </div>
                 </div>
               </div>
             </>
@@ -178,10 +341,10 @@ export const ProcessingScreen = ({ onComplete }: ProcessingScreenProps) => {
               </div>
 
               <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">
-                Processing Complete
+                Analysis Complete!
               </h2>
               <p className="text-gray-600 text-center text-sm mb-6">
-                Your documents have been successfully processed
+                Your documents have been successfully analyzed
               </p>
 
               {retrievedDocument && (
@@ -197,6 +360,14 @@ export const ProcessingScreen = ({ onComplete }: ProcessingScreenProps) => {
                   </p>
                 </div>
               )}
+
+              <button
+                onClick={() => retrievedDocument && onComplete(retrievedDocument)}
+                className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+              >
+                View Analysis Results
+                <ArrowRight className="w-5 h-5" />
+              </button>
             </>
           )}
 
@@ -222,6 +393,7 @@ export const ProcessingScreen = ({ onComplete }: ProcessingScreenProps) => {
               </button>
             </>
           )}
+          </div>
         </div>
       </div>
     </div>
